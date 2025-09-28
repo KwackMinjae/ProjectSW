@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, abort, send_from_directory
 from werkzeug.utils import secure_filename
 from pathlib import Path
-import os, uuid, shutil, threading, queue, time
+import os, uuid, shutil, threading, queue, time   # 🔹 추가됨
 
 from db import Base, engine, get_db
 from models import Job
