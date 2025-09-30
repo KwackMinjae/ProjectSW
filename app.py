@@ -2,6 +2,10 @@ from flask import Flask, jsonify, request, abort, send_from_directory
 from werkzeug.utils import secure_filename
 from pathlib import Path
 import os, uuid, shutil, threading, queue, time   # 🔹 추가됨
+from ai_client import call_ai_server, AIClientError
+
+
+
 
 from db import Base, engine, get_db
 from models import Job
@@ -41,10 +45,21 @@ def allowed(filename: str) -> bool:
 # --- 인메모리 큐 + 워커 ---
 job_queue = queue.Queue()
 
-def dummy_hair_process(src_path: Path, dst_path: Path):
-    """실제 AI 대신 단순 파일 복사 + 지연"""
-    shutil.copyfile(src_path, dst_path)
-    time.sleep(1.0)
+def hair_process(src_path: Path, dst_path: Path):
+    """
+    1순위: 외부 AI 서버 호출 (환경변수 AI_API_BASE, AI_API_KEY 사용)
+    실패하면 2순위: 더미 복사로 폴백
+    """
+    api_base = os.getenv("AI_API_BASE", "http://localhost:9000")  # 예: http://<친구서버>:9000
+    api_key  = os.getenv("AI_API_KEY")  # 필요 없으면 비워둠
+
+    try:
+        # 외부 AI 서버에 원본을 보내고, 응답 바이트를 dst_path에 저장
+        call_ai_server(src_path=src_path, dst_path=dst_path,
+                       style_id=None, api_base=api_base, api_key=api_key, timeout=300)
+    except AIClientError as e:
+        # 외부 AI 서버가 없거나 실패하면 안전하게 더미 복사로 폴백
+        shutil.copyfile(src_path, dst_path)
 
 def worker_loop():
     from db import get_db
@@ -61,7 +76,8 @@ def worker_loop():
         try:
             src = Path(job.src_path)
             dst = RESULTS / f"{job.id}_result{src.suffix}"
-            dummy_hair_process(src, dst)
+           # 기존: dummy_hair_process(src, dst)
+            hair_process(src, dst)
             job.result_path = str(dst)
             job.status = "DONE"
             db.commit()
