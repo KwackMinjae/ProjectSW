@@ -1,17 +1,16 @@
-from flask import Flask, jsonify, request, abort, send_from_directory
+from flask import Flask, jsonify, request, abort, send_from_directory, render_template
 from werkzeug.utils import secure_filename
 from pathlib import Path
-import os, uuid, shutil, threading, queue, time   # 🔹 추가됨
-from ai_client import call_ai_server, AIClientError
-
-
-
+import os, uuid, shutil, threading, queue, time
 
 from db import Base, engine, get_db
 from models import Job
 
 # 🔹 CORS 추가
 from flask_cors import CORS
+
+# 🔹 외부 AI 클라이언트
+from ai_client import call_ai_server, AIClientError
 
 app = Flask(__name__)
 CORS(app)  # 🔹 모든 출처 허용 (테스트/프런트 연동 편의용)
@@ -54,11 +53,9 @@ def hair_process(src_path: Path, dst_path: Path):
     api_key  = os.getenv("AI_API_KEY")  # 필요 없으면 비워둠
 
     try:
-        # 외부 AI 서버에 원본을 보내고, 응답 바이트를 dst_path에 저장
         call_ai_server(src_path=src_path, dst_path=dst_path,
                        style_id=None, api_base=api_base, api_key=api_key, timeout=300)
-    except AIClientError as e:
-        # 외부 AI 서버가 없거나 실패하면 안전하게 더미 복사로 폴백
+    except AIClientError:
         shutil.copyfile(src_path, dst_path)
 
 def worker_loop():
@@ -76,7 +73,6 @@ def worker_loop():
         try:
             src = Path(job.src_path)
             dst = RESULTS / f"{job.id}_result{src.suffix}"
-           # 기존: dummy_hair_process(src, dst)
             hair_process(src, dst)
             job.result_path = str(dst)
             job.status = "DONE"
@@ -133,11 +129,17 @@ def get_job(job_id: int):
         error=job.error
     )
 
-# 결과 파일 서빙
+# --- 결과 파일 서빙 ---
 @app.get("/files/results/<path:filename>")
 def serve_result(filename: str):
     return send_from_directory(RESULTS, filename, as_attachment=False)
 
+# --- 테스트용 프론트 페이지 라우트 ---
+@app.get("/")
+def home():
+    return render_template("index.html")
+
+# --- 메인 실행 ---
 if __name__ == "__main__":
     # 🔹 워커 스레드 시작
     worker_thread = threading.Thread(target=worker_loop, daemon=True)
