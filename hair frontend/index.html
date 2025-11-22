@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>헤어추천 | AI 스타일 미리보기</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 상단 내비게이션 (웹 스타일) -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">헤어추천</div>
+      <nav class="topnav" aria-label="주요 메뉴">
+        <a href="index.html" aria-current="page">홈</a>
+        <a href="stores.html">매장목록</a>
+        <a href="matching.html">모델 매칭</a>
+        <a href="chat.html">채팅</a>
+        <a href="my.html">마이</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container page">
+    <h1 class="page-title">AI 스타일 미리보기</h1>
+    <p class="page-sub">
+      얼굴 사진을 업로드하고, 원하는 헤어 스타일을 선택한 뒤<br />
+      2D 합성과 3D 변환을 통해 스타일을 미리 확인해 보세요.
+    </p>
+
+    <!-- 좌: 2D / 우: 3D -->
+    <section class="compare-row">
+      <!-- 2D 영역 -->
+      <article class="upload-card">
+        <header class="card-head">
+          <h2>2D 합성</h2>
+          <span class="muted">얼굴 사진 업로드 후 합성 결과 미리보기</span>
+        </header>
+
+        <!-- 가로 2열: 왼쪽 얼굴 / 오른쪽 2D 결과 -->
+        <div class="row-2d">
+          <!-- 왼쪽: 얼굴 업로드 -->
+          <div class="upload-visual small" id="previewFace" aria-label="얼굴 사진 미리보기">
+            <span class="style-label">얼굴 사진</span>
+            <button id="uploadBtnFace" class="btn ghost small upload-fab" type="button">업로드</button>
+            <svg class="camera-ph" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7a2 2 0 0 1 2-2h2l1-1h6l1 1h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7z"/>
+              <circle cx="12" cy="12" r="3.5"/>
+            </svg>
+          </div>
+
+          <input id="fileInputFace" type="file" accept="image/*" hidden />
+
+          <!-- 오른쪽: 2D 합성 결과 -->
+          <div class="upload-visual small" id="preview2d" aria-label="2D 합성 결과 미리보기">
+            <span class="style-label">2D 합성 결과</span>
+            <span class="convert-label">얼굴 업로드 후 '2D 합성하기'를 눌러주세요</span>
+          </div>
+        </div>
+
+        <!-- 헤어 스타일 선택(드롭다운) -->
+        <section class="panel" style="margin-top:16px;">
+          <div class="panel-head">
+            <h3 style="margin:0; font-size:14px;">헤어 스타일 선택</h3>
+          </div>
+
+          <!-- 드롭다운 언더바 -->
+          <div class="hair-dropdown" id="hairDropdown">
+            <button type="button" class="hair-dropdown-toggle" id="hairDropdownToggle">
+              <span id="hairDropdownLabel">헤어스타일을 선택하세요</span>
+              <span class="hair-dropdown-arrow">▾</span>
+            </button>
+            <div class="hair-dropdown-menu" id="hairDropdownMenu">
+              <!-- JS에서 Pro 헤어스타일 목록이 여기 생성됨 -->
+            </div>
+          </div>
+
+          <p class="muted" id="currentStyleInfo" style="margin-top:8px;">
+            선택된 스타일: -
+          </p>
+        </section>
+
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button id="fuse2dBtn" class="btn primary" type="button" disabled>2D 합성하기</button>
+        </div>
+      </article>
+
+      <!-- 3D 프리뷰 영역 (아래 다른 콘텐츠 없이 3D만 크게 사용) -->
+      <article class="upload-card" style="position: relative;">
+        <header class="card-head">
+          <h2>3D 프리뷰</h2>
+          <span class="muted">2D 합성 결과를 3D로 확인</span>
+        </header>
+
+        <!-- 3D 뷰어: 이 영역이 카드 대부분을 차지하도록 CSS에서 높이만 키워주면 됨 -->
+        <div class="upload-visual" id="preview3d" aria-label="3D 변환 결과 미리보기">
+          <span class="convert-label">2D 합성 후 3D 변환을 실행하세요</span>
+
+          <!-- 오버레이 + Prev/Next -->
+          <div class="vision-overlay">
+            <button class="giant-nav prev" id="navPrev" aria-label="이전">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button class="giant-nav next" id="navNext" aria-label="다음">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+
+            <div class="vision-hud" id="visionHud">
+              <span class="hud-title">3D 결과 프리뷰</span>
+              <span class="hud-index" id="hudIndex">0 / 0</span>
+            </div>
+
+            <div class="vision-spot" id="visionSpot"></div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button id="convertBtn" class="btn primary" type="button" disabled>3D 변환하기</button>
+          <button id="reset3dBtn" class="btn subtle" type="button">초기화</button>
+        </div>
+        <!-- ★ filmstrip(썸네일 줄)은 완전히 삭제해서 아래에 아무 것도 안 나오게 했습니다 -->
+      </article>
+    </section>
+
+    <!-- 추천 매장 -->
+    <section class="panel">
+      <h3 class="mb-8">추천 매장</h3>
+      <div class="card-row" id="recoRow"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <span>© 2025 헤어추천</span>
+    </div>
+  </footer>
+
+  <!-- Three.js (로컬 libs 버전 사용) -->
+  <script src="libs/three.min.js"></script>
+  <script src="libs/GLTFLoader.js"></script>
+  <script src="libs/OrbitControls.js"></script>
+
+  <!-- 앱 스크립트 -->
+  <script src="app.js"></script>
+</body>
+</html>
